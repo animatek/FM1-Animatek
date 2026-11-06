@@ -1,2 +1,42 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=atek303/cheatsheet/"><title>FM1-Animatek</title></head>
-<body><a href="atek303/cheatsheet/">ATEK303 cheat sheet</a> · <a href="https://github.com/animatek/FM1-Animatek">github.com/animatek/FM1-Animatek</a></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATEK303 for M-VAVE FM-1 · Animatek</title>
+<meta name="description" content="ATEK303, an acid firmware for the M-VAVE FM-1 by Animatek: play it in your browser, read the cheat sheet, get the release.">
+<meta property="og:image" content="https://animatek.github.io/FM1-Animatek/atek303/art/cover-1024.jpg">
+<link rel="icon" href="atek303/art/splash-smiley.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,600;0,800;1,900&display=swap');
+body{margin:0;min-height:100vh;background:#0b0c0e;color:#e8ecf3;font-family:Inter,sans-serif;display:flex;flex-direction:column;align-items:center}
+.checker{width:100%;height:14px;background:repeating-conic-gradient(#F5E60A 0 25%,#000 0 50%) 0 0/14px 14px}
+main{max-width:880px;padding:40px 24px;text-align:center}
+img.cover{width:min(420px,90vw);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.7)}
+h1{font-size:clamp(40px,8vw,72px);font-weight:900;font-style:italic;margin:28px 0 6px;letter-spacing:-2px}
+h1 span{color:#FD9A00}
+p{color:#9AA2B5;font-size:18px;line-height:1.5;margin:0 auto 28px;max-width:620px}
+.btns{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
+a.btn{display:inline-block;padding:14px 24px;border-radius:999px;font-weight:800;text-decoration:none;font-size:16px}
+a.play{background:#F5E60A;color:#000}
+a.sec{border:2px solid #2C7FFF;color:#e8ecf3}
+small{display:block;margin-top:36px;color:#6f7787;font-size:13px;line-height:1.6}
+small a{color:#9AA2B5}
+</style>
+</head>
+<body>
+<div class="checker"></div>
+<main>
+  <img class="cover" src="atek303/art/cover.jpg" alt="ATEK303 by Animatek, firmware for the M-VAVE FM-1">
+  <h1>ATEK<span>303</span></h1>
+  <p>An acid firmware for the M-VAVE FM-1: the ATEK303 voice from VCV Rack with its own pattern generator. Press PLAY and a line plays.</p>
+  <div class="btns">
+    <a class="btn play" href="atek303/play/">Play it in your browser</a>
+    <a class="btn sec" href="atek303/cheatsheet/">Cheat sheet</a>
+    <a class="btn sec" href="https://github.com/animatek/FM1-Animatek/releases/latest">Download (.fwsc)</a>
+  </div>
+  <small>The browser version runs the firmware's own code, compiled to WebAssembly (fm1-base's emulator). Computer keys and the mouse play it.<br>
+  GPL-3.0 · <a href="https://github.com/animatek/FM1-Animatek">source on GitHub</a> · <a href="https://animatek.net">animatek.net</a> · Not affiliated with M-VAVE or Roland.</small>
+</main>
+</body>
+</html>
