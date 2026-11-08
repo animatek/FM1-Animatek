@@ -135,26 +135,39 @@ enum { R_PRE, R_IN1, R_IN2, R_IN3, R_IN4, R_AP1L, R_D1L, R_AP2L, R_D2L, R_AP1R, 
 #define EXC 24u                                /* the tank modulation's excursion, in samples */
 static uint32_t r_len[R_NLINES], r_off[R_NLINES], r_pos[R_NLINES];
 #define RV_N (PRE_MAX + 33400u)              /* the lines below add up to 35588 */
-static float rv_buf[RV_N] FX_POOL;
+#ifdef FX_RV_Q                                 /* the plate's lines in 16 bits, FX_RV_Q a unit (a smaller build) */
+typedef int16_t rv_t;
+static inline float rv_ld(rv_t v) { return (float)v * (1.0f / (float)FX_RV_Q); }
+static inline rv_t rv_st(float x)
+{
+    x *= (float)FX_RV_Q;
+    return (rv_t)(x > 32767.0f ? 32767.0f : x < -32767.0f ? -32767.0f : x + (x < 0.0f ? -0.5f : 0.5f));
+}
+#else                                          /* (our own build: floats, as before) */
+typedef float rv_t;
+#define rv_ld(v) (v)
+#define rv_st(x) (x)
+#endif
+static rv_t rv_buf[RV_N] FX_POOL;
 static uint8_t rv_ok;
 static struct {
     float bw, lp_l, lp_r, damp_c, decay, fb_l, fb_r, ph;
 } rv;
-static inline float *rline(int k) { return &rv_buf[r_off[k]]; }
+static inline rv_t *rline(int k) { return &rv_buf[r_off[k]]; }
 static inline float rtap(int k, uint32_t d)   /* the sample written d ago */
 {
     uint32_t n = r_len[k], p = r_pos[k];
-    return rline(k)[(p + n - (d % n)) % n];
+    return rv_ld(rline(k)[(p + n - (d % n)) % n]);
 }
 static inline void rput(int k, float x)
 {
-    rline(k)[r_pos[k]] = x;
+    rline(k)[r_pos[k]] = rv_st(x);
     if (++r_pos[k] >= r_len[k])
         r_pos[k] = 0;
 }
 static inline float rap(int k, float x, float g)   /* Schroeder allpass on line k, full length */
 {
-    float d = rline(k)[r_pos[k]], v = x - g * d;   /* (the oldest sample: written len ago) */
+    float d = rv_ld(rline(k)[r_pos[k]]), v = x - g * d;   /* (the oldest sample: written len ago) */
     rput(k, flush(v));
     return d + g * v;
 }
@@ -167,7 +180,7 @@ static inline float rap_mod(int k, float x, float g, float delay)   /* the tank'
         pos += (float)n;
     i = (int32_t)pos;
     f = pos - (float)i;
-    d = rline(k)[(uint32_t)i % n] * (1.0f - f) + rline(k)[(uint32_t)(i + 1) % n] * f;
+    d = rv_ld(rline(k)[(uint32_t)i % n]) * (1.0f - f) + rv_ld(rline(k)[(uint32_t)(i + 1) % n]) * f;
     v = x - g * d;
     rput(k, flush(v));
     return d + g * v;
