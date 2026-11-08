@@ -12,7 +12,8 @@ SITE/atek303/:
   firmware/   the package the installer writes (atek303-X.Y.fwsc)
   play/       the browser version (app/build/emu)
 and puts the bar (Try it, Install, Backup, Cheat sheet, Source) on those pages and the cheat sheet. m-bootloader's
-option on the installer is left out: its own author warns about it on FM-1s with the newer flash (0xB36014)."""
+option on the installer is left out: its own author warns about it on FM-1s with the newer flash (0xB36014). On Linux
+the installer writes the classic way (the fast one loses the USB there)."""
 import shutil
 import subprocess
 import sys
@@ -46,6 +47,21 @@ def bar(here):
             f'<a class="src" href="https://github.com/animatek/FM1-Animatek">Source</a></nav>')
 
 
+# the fast install loses the USB on Linux (here, from Chrome as from fm1_install.py: "USB LOST" at 2 %): the classic one
+# there, and anywhere with ?classic
+CLASSIC_OLD = "const up = new Updater(midi, lg);"
+CLASSIC_NEW = ("const up = new Updater(midi, lg); if ((/Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent))"
+               " || /[?&]classic/.test(location.search)) up.classic = true;")
+
+
+def classic_on_linux(page):
+    html = page.read_text(encoding="utf-8")
+    if CLASSIC_NEW not in html:
+        if html.count(CLASSIC_OLD) != 1:
+            sys.exit(f"{page}: the installer's Updater is not where it was (fm1-base changed): check CLASSIC_OLD")
+        page.write_text(html.replace(CLASSIC_OLD, CLASSIC_NEW), encoding="utf-8")
+
+
 def put_bar(page, here):
     html = page.read_text(encoding="utf-8")
     if 'id="atek-bar"' in html:                     # (again on a page that has it: the bar as it is now)
@@ -71,6 +87,7 @@ with tempfile.TemporaryDirectory() as tmp:
 shutil.rmtree(out / "play", ignore_errors=True)
 shutil.copytree(HERE / "app" / "build" / "emu", out / "play", ignore=shutil.ignore_patterns("o2", "web", "*.o"))
 shutil.copy(HERE / "cheatsheet" / "index.html", out / "cheatsheet" / "index.html")
+classic_on_linux(out / "install" / "index.html")
 for p, _ in PAGES:
     put_bar(out / p / "index.html", p)
 print(f"{out}: play/, install/, backup/, firmware/{pkg.name}, cheatsheet/ with the bar")
