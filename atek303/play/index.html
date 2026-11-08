@@ -77,8 +77,19 @@ a { color: var(--accent); }
 .help ul { padding-left: 1.1rem; }
 kbd { font: 600 .85em ui-monospace, Menlo, monospace; background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 0 .3em; color: var(--ink); }
 </style>
+<style id="atek-bar-css">
+#atek-bar{background:#16181C;border-bottom:1px solid #2a2e35;font:600 15px/1 "Barlow Semi Condensed",system-ui,sans-serif;
+ letter-spacing:.02em;display:flex;flex-wrap:wrap;align-items:center;gap:4px 18px;padding:10px 16px;position:relative;z-index:50}
+#atek-bar a{color:#9aa2b5;text-decoration:none;padding:4px 0}
+#atek-bar a:hover,#atek-bar a.on{color:#5DB7FF}
+#atek-bar .home{color:#fff;font-weight:700;margin-right:6px}
+#atek-bar .home b{color:#FD9A00;font-weight:700}
+#atek-bar .src{margin-left:auto}
+#mbootopt{display:none!important}
+@media print{#atek-bar{display:none}}
+</style>
 </head>
-<body>
+<body><nav id="atek-bar"><a class="home" href="../../">ATEK<b>303</b></a><a href="../play/" class="on">Try it</a><a href="../install/">Install</a><a href="../backup/">Backup</a><a href="../cheatsheet/">Cheat sheet</a><a class="src" href="https://github.com/animatek/FM1-Animatek">Source</a></nav>
 <header>
   <h1>ATEK303</h1>
 </header>

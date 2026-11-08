@@ -60,8 +60,19 @@ footer{position:absolute;left:10mm;right:10mm;bottom:7mm;display:flex;justify-co
 footer b{color:var(--dim)}
 @media screen and (max-width:1150px){.sheet{width:100%;height:auto;padding:24px 16px 60px}footer{position:static;flex-direction:column;gap:6px;margin-top:10px}.grid{grid-template-columns:1fr}h1{font-size:44px}}
 </style>
+<style id="atek-bar-css">
+#atek-bar{background:#16181C;border-bottom:1px solid #2a2e35;font:600 15px/1 "Barlow Semi Condensed",system-ui,sans-serif;
+ letter-spacing:.02em;display:flex;flex-wrap:wrap;align-items:center;gap:4px 18px;padding:10px 16px;position:relative;z-index:50}
+#atek-bar a{color:#9aa2b5;text-decoration:none;padding:4px 0}
+#atek-bar a:hover,#atek-bar a.on{color:#5DB7FF}
+#atek-bar .home{color:#fff;font-weight:700;margin-right:6px}
+#atek-bar .home b{color:#FD9A00;font-weight:700}
+#atek-bar .src{margin-left:auto}
+#mbootopt{display:none!important}
+@media print{#atek-bar{display:none}}
+</style>
 </head>
-<body>
+<body><nav id="atek-bar"><a class="home" href="../../">ATEK<b>303</b></a><a href="../play/">Try it</a><a href="../install/">Install</a><a href="../backup/">Backup</a><a href="../cheatsheet/" class="on">Cheat sheet</a><a class="src" href="https://github.com/animatek/FM1-Animatek">Source</a></nav>
 <div class="sheet">
 <div class="checker top"></div>
 
