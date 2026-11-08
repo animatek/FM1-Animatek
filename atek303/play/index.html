@@ -78,15 +78,30 @@ a { color: var(--accent); }
 kbd { font: 600 .85em ui-monospace, Menlo, monospace; background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 0 .3em; color: var(--ink); }
 </style>
 <style id="atek-bar-css">
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&display=swap');
 #atek-bar{background:#16181C;border-bottom:1px solid #2a2e35;font:600 15px/1 "Barlow Semi Condensed",system-ui,sans-serif;
- letter-spacing:.02em;display:flex;flex-wrap:wrap;align-items:center;gap:4px 18px;padding:10px 16px;position:relative;z-index:50}
+ letter-spacing:.02em;display:flex;flex-wrap:wrap;align-items:center;gap:4px 20px;padding:14px max(16px,calc(50vw - 520px));
+ position:sticky;top:0;z-index:50;box-sizing:border-box}
 #atek-bar a{color:#9aa2b5;text-decoration:none;padding:4px 0}
 #atek-bar a:hover,#atek-bar a.on{color:#5DB7FF}
-#atek-bar .home{color:#fff;font-weight:700;margin-right:6px}
-#atek-bar .home b{color:#FD9A00;font-weight:700}
+#atek-bar .home{color:#fff;font-weight:700;font-size:17px;margin-right:8px}
+#atek-bar .home b{color:#2C7FFF;font-weight:700}
 #atek-bar .src{margin-left:auto}
-#mbootopt{display:none!important}
+@media (max-width:560px){#atek-bar{gap:4px 14px}#atek-bar .src{display:none}}
 @media print{#atek-bar{display:none}}
+:root,:root[data-theme],:root:not([data-theme="light"]){--bg:#0f1114!important;--ground:#0f1114!important;
+ --fg:#e8ecf3!important;--ink:#e8ecf3!important;--dim:#9aa2b5!important;--muted:#9aa2b5!important;--rule:#2a2e35!important;
+ --card:#181b20!important;--accent:#2C7FFF!important;--accent-ink:#5DB7FF!important;--on-accent:#fff!important;
+ --teal:#5DB7FF!important;--bad:#ff6b6b!important;--focus:#5DB7FF!important;color-scheme:dark!important}
+html{background:#0f1114}
+body{padding-top:0!important;overflow-x:hidden}
+body>#atek-bar{margin:0 calc(50% - 50vw) 28px;width:100vw}
+body>header{display:none!important}
+a{color:#5DB7FF}
+.start button{background:#2C7FFF!important;color:#fff!important}
+.held .btnface,.held .keyface{stroke:#FD9A00!important}
+.latched .btnface,.latched .keyface{stroke:#5DB7FF!important}
+#mbootopt{display:none!important}
 </style>
 </head>
 <body><nav id="atek-bar"><a class="home" href="../../">ATEK<b>303</b></a><a href="../play/" class="on">Try it</a><a href="../install/">Install</a><a href="../backup/">Backup</a><a href="../cheatsheet/">Cheat sheet</a><a class="src" href="https://github.com/animatek/FM1-Animatek">Source</a></nav>
