@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11-12
+
+- **PR de ATEK303 a fm1-dock sin conflictos** (joakimeriksson/fm1-dock#64). Chocaba con 30 commits de upstream (FMINI-1, FM6, Scintilla 0.3) en `README.md`, `LICENSING.md` y `docs/modules/modules.json`; se quedan las dos filas o entradas y `modules.json` es JSON válido. Va como merge de `upstream/main` (`993a922`) en la rama `atek303-module` del fork, sin reescribir historia; el diff contra upstream son solo los ficheros de ATEK303 y una línea por catálogo. La PR sale `MERGEABLE`. Sin compilar el módulo de nuevo.
+- **Lector de pantalla: ficheros de palabras publicados** (issue #1). `atek303/words/13fa29101f.json` (1.2) y `017a6f770a.json` (1.0/1.1) en `gh-pages` (`452722b`), con CORS de GitHub Pages; comprobado con `curl` (200 y `access-control-allow-origin: *`). Los firmwares piden `animatek.net/atek303/words/`, que el tema redirige a GitHub Pages (commit `66c3c3e` en animatek-tailpress, **sin release todavía**).
+
 ## 2026-11-08
 
 - **ATEK303: instalar y copiar presets desde el navegador.** `atek303/tools/site_pages.py` hace con `make_site.py` de fm1-base las páginas `install/` y `backup/` y les pone la barra del sitio (Try it · Install · Backup · Cheat sheet · Source), también en el reproductor y la cheat sheet; botones nuevos en la portada. Sin la opción de m-bootloader. En Linux el instalador va en modo clásico: el rápido perdía el USB («USB LOST», como `fm1_install.py`); probado por Javier desde Chrome en su FM-1, que vuelve a la 1.2. Publicado en `gh-pages` (`c68164c`) con `atek303/firmware/atek303-1.2.fwsc` (el instalador lo necesita en el sitio). Commits `48f604b`, `13858b6`.
