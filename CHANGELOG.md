@@ -2,6 +2,7 @@
 
 ## 2026-11-12
 
+- **Issue #1 cerrado.** El tema v5.9.5 ya está en animatek.net: `animatek.net/atek303/words/13fa29101f.json` da 302 con CORS hacia GitHub Pages y 200 al final (también `017a6f770a`), comprobado con `curl`. Respuesta publicada en el issue. La carpeta `atek303/words/` tiene ahora un `index.html` con los dos ficheros (`gh-pages`, `4bb4f83`): sin él, GitHub Pages daba 404 en la carpeta.
 - **PR de ATEK303 a fm1-dock sin conflictos** (joakimeriksson/fm1-dock#64). Chocaba con 30 commits de upstream (FMINI-1, FM6, Scintilla 0.3) en `README.md`, `LICENSING.md` y `docs/modules/modules.json`; se quedan las dos filas o entradas y `modules.json` es JSON válido. Va como merge de `upstream/main` (`993a922`) en la rama `atek303-module` del fork, sin reescribir historia; el diff contra upstream son solo los ficheros de ATEK303 y una línea por catálogo. La PR sale `MERGEABLE`. Sin compilar el módulo de nuevo.
 - **Lector de pantalla: ficheros de palabras publicados** (issue #1). `atek303/words/13fa29101f.json` (1.2) y `017a6f770a.json` (1.0/1.1) en `gh-pages` (`452722b`), con CORS de GitHub Pages; comprobado con `curl` (200 y `access-control-allow-origin: *`). Los firmwares piden `animatek.net/atek303/words/`, que el tema redirige a GitHub Pages (commit `66c3c3e` en animatek-tailpress, **sin release todavía**).
 
