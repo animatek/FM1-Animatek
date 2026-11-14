@@ -36,16 +36,30 @@ turn K1 1
 wait 30
 expect color 1
 shot options_green.png
-# SELECT baja a ANALOG DRIFT (el 14) y K2 lo pone en MARKED
-turn SELECT 14
+# SELECT baja a ANALOG DRIFT (el 15) y K2 lo pone en MARKED
+turn SELECT 15
 wait 30
-expect optcur 14
+expect optcur 15
 turn K2 1
 wait 60
 expect drift 2
 shot options_fine.png
-# SEQ NOTES OUT y CLOCK OUT
+# CLK OFFSET (el 5): de -16 MS (24, de serie) a -28 MS (12), y no pasa de -40 MS (0)
 turn SELECT -10
+wait 30
+expect optcur 5
+expect optval 24
+turn K1 -12
+wait 30
+expect optval 12
+turn K1 -50
+wait 30
+expect optval 0
+turn K1 28
+wait 30
+expect optval 28
+# SEQ NOTES OUT y CLOCK OUT
+turn SELECT -1
 wait 30
 expect optcur 4
 turn K1 1

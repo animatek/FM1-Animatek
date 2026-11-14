@@ -1,0 +1,119 @@
+# CLK OFFSET con reloj MIDI externo: -20 MS adelanta cada paso 20 ms, desde el que sigue al primer tempo medido.
+# Tras el Start, el 1.er paso es el 7.º pulso; pulsos cada 18 ms: un paso son 108 ms. El MIDI y el reloj van
+# al grano de un bloque (5,8 ms)
+wait 600
+press OCT-
+wait 100
+tap HOME
+wait 60
+release OCT-
+wait 30
+expect opts 1
+turn SELECT 5
+wait 30
+expect optcur 5
+turn K1 -4
+wait 30
+expect optval 20
+tap HOME
+wait 30
+expect opts 0
+midi FA
+wait 5
+expect step 0
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+expect step 2
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 8
+# el paso 3 entra a ~88-94 ms del 13.º pulso, antes de su 19.º (108 ms)
+expect step 3
+midi F8
+wait 18
+expect step 3
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 8
+expect step 3
+wait 16
+expect step 4
+midi F8
+wait 18
+midi F8
+wait 18
+expect step 4
+midi FC
+wait 30
+expect running 0
+# +20 MS: cada paso, 20 ms después de su pulso
+press OCT-
+wait 100
+tap HOME
+wait 60
+release OCT-
+wait 30
+expect optcur 5
+turn K1 40
+wait 30
+expect optval 60
+tap HOME
+wait 30
+midi FA
+wait 5
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 18
+midi F8
+wait 10
+expect step 0
+wait 18
+expect step 1
+midi FC
+wait 30
+expect running 0

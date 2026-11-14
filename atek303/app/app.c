@@ -153,8 +153,9 @@ static int8_t cur_preset = -1;                 /* the one loaded (or saved) last
 
 /* the OPTIONS menu (OCT- + HOME): the unit's own choices, apart from the settings so no preset carries them (OBJ_OPTIONS,
  * saved as the menu closes). Each an index into its choices */
-#define OPT_MAGIC 0x4F505431u                  /* "OPT1" */
-enum { OP_COLOR, OP_MIDI_IN, OP_MIDI_OUT, OP_SEQ_OUT, OP_CLOCK_OUT, OP_FINE, OP_N = OP_FINE + AT_NOPTS };
+#define OPT_MAGIC 0x4F505432u                  /* "OPT2": CLK OFFSET added (an older record: the defaults) */
+enum { OP_COLOR, OP_MIDI_IN, OP_MIDI_OUT, OP_SEQ_OUT, OP_CLOCK_OUT, OP_CLK_OFS, OP_FINE, OP_N = OP_FINE + AT_NOPTS };
+#define CLK_OFS_MAX 40                         /* OPTIONS > CLK OFFSET: -40 .. +40 ms, stored + 40 */
 typedef struct {
     uint32_t magic;
     uint8_t v[OP_N];
@@ -169,12 +170,13 @@ static void options_defaults(void)
     opt.v[OP_MIDI_OUT] = 0;                    /* channel 1 */
     opt.v[OP_SEQ_OUT] = 1;                     /* the sequencer's notes out */
     opt.v[OP_CLOCK_OUT] = 0;
+    opt.v[OP_CLK_OFS] = CLK_OFS_MAX - 16;      /* -16 ms: a Digitakt on the TRS jack, by ear in fm1-dock (14/11) */
     for (i = 0; i < AT_NOPTS; i++)
         opt.v[OP_FINE + i] = AT_OPT_DEFAULT[i];
 }
 static int opt_count(int i)                    /* how many choices item i has */
 {
-    static const uint8_t N[OP_FINE] = {0, 17, 16, 2, 2};
+    static const uint8_t N[OP_FINE] = {0, 17, 16, 2, 2, 2 * CLK_OFS_MAX + 1};
     return i == OP_COLOR ? NTHEMES : i < OP_FINE ? N[i] : AT_OPT_N[i - OP_FINE];
 }
 static void options_load(void)
@@ -304,6 +306,10 @@ static struct {
     uint8_t ext;                               /* following MIDI clock */
     uint8_t ticks;                             /* MIDI clock ticks into this step (6 a step) */
     uint32_t ext_last;                         /* render samples at the last step from MIDI clock */
+    float ext_p;                               /* MIDI clock: a step's length, smoothed (samples; 0: not yet) */
+    uint32_t clk_steps, fired;                 /* MIDI clock: the steps it asked for since the start, the steps played */
+    uint32_t due;                              /* MIDI clock: when the step held for CLK OFFSET plays (samples) */
+    uint8_t due_on;
     uint32_t now;                              /* samples since boot (render) */
     float step_time, period;                   /* seconds */
     uint8_t was_gate;
@@ -520,6 +526,7 @@ static void seq_apply(void)
         ui_note = -1;
     sq.was_gate = (uint8_t)gate;
 }
+static void seq_fire(void);
 static void seq_chunk(uint32_t n)              /* the internal clock, n samples on */
 {
     float dt = (float)n / SR;
@@ -529,6 +536,10 @@ static void seq_chunk(uint32_t n)              /* the internal clock, n samples 
         sq.period = 15.0f / (float)(set.tempo < 30u ? 30u : set.tempo);   /* a sixteenth */
         if (sq.step_time >= sq.period)
             seq_next_step();
+    } else if (sq.due_on && (int32_t)(sq.now - sq.due) >= 0) {   /* CLK OFFSET: the step held or guessed, now */
+        sq.due_on = 0;
+        if (sq.fired <= sq.clk_steps)          /* (never more than one ahead of the clock) */
+            seq_fire();
     }
     seq_apply();
     if (!sq.ext && opt.v[OP_CLOCK_OUT])         /* MIDI clock out, 24 a quarter: tick k of the step at k/6 of it */
@@ -538,12 +549,20 @@ static void seq_chunk(uint32_t n)              /* the internal clock, n samples 
         }
     sq.step_time += dt;
 }
+static void seq_fire(void)                     /* MIDI clock: a step plays (CLK OFFSET's count) */
+{
+    sq.fired++;
+    seq_next_step();
+}
 static void seq_clock(uint32_t st)             /* render: MIDI realtime messages */
 {
     if (st == 0xFAu) {                         /* start */
         sq.ext = 1;
         sq.running = 0;
         seq_play(1);
+        sq.clk_steps = sq.fired = 0;
+        sq.due_on = 0;
+        sq.ext_p = 0.0f;
         sq.ticks = 255;                        /* the clock after a start is the first step's own: the next
                                                 * step comes on the 7th, as a DAW counts (it wraps to 0 here) */
         sq.ext_last = sq.now;
@@ -551,6 +570,8 @@ static void seq_clock(uint32_t st)             /* render: MIDI realtime messages
         sq.ext = 1;
         sq.running = 1;
         sq.started = 1;
+        sq.fired = sq.clk_steps;
+        sq.due_on = 0;
     } else if (st == 0xFCu) {                  /* stop */
         seq_play(0);
     } else if (st == 0xF8u) {
@@ -559,11 +580,37 @@ static void seq_clock(uint32_t st)             /* render: MIDI realtime messages
             return;
         if (++sq.ticks >= 6u) {
             uint32_t span = sq.now - sq.ext_last;
+            int32_t ofs = (int32_t)opt.v[OP_CLK_OFS] - CLK_OFS_MAX;            /* ms */
             sq.ticks = 0;
-            if (span > 0u)
+            if (span > 0u) {
                 sq.period = fm_clampf((float)span / SR, 0.002f, 4.0f);
+                if (sq.clk_steps)                 /* (the first span runs from the start) */
+                    sq.ext_p = sq.ext_p > 0.0f ? sq.ext_p + 0.25f * ((float)span - sq.ext_p) : (float)span;
+            }
             sq.ext_last = sq.now;
-            seq_next_step();
+            sq.clk_steps++;
+            /* CLK OFFSET: + holds this step that many ms; - plays the next one that much before the clock asks for it,
+             * a step's length on (smoothed: the clock comes at a render block's grain). A step the clock asks for and
+             * not yet played plays now (the first after a start, or a tempo change faster than the guess) */
+            if (ofs >= 0) {
+                if (sq.due_on)
+                    seq_fire();
+                sq.due = sq.now + (uint32_t)((float)ofs * (SR / 1000.0f));
+                sq.due_on = 1;
+                if (!ofs) {
+                    sq.due_on = 0;
+                    seq_fire();
+                }
+            } else {
+                if (sq.fired < sq.clk_steps)
+                    seq_fire();
+                sq.due_on = 0;
+                if (sq.ext_p > 0.0f) {
+                    float ahead = sq.ext_p + (float)ofs * (SR / 1000.0f);
+                    sq.due = sq.now + (uint32_t)(ahead > 0.0f ? ahead : 0.0f);
+                    sq.due_on = 1;
+                }
+            }
         }
     }
 }
@@ -1392,9 +1439,9 @@ static void edit_move(int32_t d)
 }
 /* ------------------------------------------------------------ OPTIONS --- */
 static const char *const OPT_LABEL[OP_N] = {"COLOR", "MIDI IN CH", "MIDI OUT CH", "SEQ NOTES OUT", "CLOCK OUT",
-    "PULSE WIDTH", "SQUARE DROOP", "SAW RESET", "SAW DROOP", "FILTER DRIVE", "SLIDE TIME", "AUTO LEGATO",
+    "CLK OFFSET", "PULSE WIDTH", "SQUARE DROOP", "SAW RESET", "SAW DROOP", "FILTER DRIVE", "SLIDE TIME", "AUTO LEGATO",
     "OTA SATURATION", "OUT SATURATION", "ANALOG DRIFT", "UNIT"};
-static const char *const OPT_SECTION[OP_N] = {"DISPLAY", "MIDI", 0, 0, 0, "FINE TUNING", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const char *const OPT_SECTION[OP_N] = {"DISPLAY", "MIDI", 0, 0, 0, 0, "FINE TUNING", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static void opt_value_text(int i, char *t)
 {
     static const char *const FINE[AT_NOPTS][5] = {
@@ -1410,6 +1457,12 @@ static void opt_value_text(int i, char *t)
         text_cat(t, "ALL");
     else if (i == OP_MIDI_IN || i == OP_MIDI_OUT)
         int_text(i == OP_MIDI_IN ? v : v + 1, t);
+    else if (i == OP_CLK_OFS) {                /* "+12 MS", "0 MS", "-5 MS" */
+        if (v > CLK_OFS_MAX)
+            text_cat(t, "+");
+        int_text(v - CLK_OFS_MAX, t + (v > CLK_OFS_MAX));
+        text_cat(t, " MS");
+    }
     else if (i < OP_FINE)
         text_cat(t, v ? "ON" : "OFF");
     else
