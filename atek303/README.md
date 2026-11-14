@@ -4,6 +4,14 @@ La voz del **ATEK303** de VCV Rack (`../../VCV-Rack/ATEK303`) como firmware del 
 sobre **fm1-base**. Primer paso del plan (ver `../docs/05-ideas-animatek.md`): aprender la
 plataforma con un motor que ya es nuestro. Licencia GPL-3.0-or-later, como el ATEK303.
 
+## Estado (2026-11-14): lo que trae la 1.3
+
+- **OPTIONS > CLK OFFSET** (sección MIDI): −40 a +40 ms, de 1 en 1, para cuadrar el secuenciador con un reloj MIDI
+  externo. Negativo toca cada paso antes de que el reloj lo pida (con la duración del paso medida y suavizada; el
+  primero tras el Start, a su hora); positivo lo retrasa. **De serie −16 ms**: clavado con un Digitakt por TRS.
+- Las OPTIONS guardadas de la 1.2 vuelven una vez a sus valores por defecto (el formato cambia: `OPT2`).
+- Nueve pruebas del simulador (`clkofs.txt` nueva).
+
 ## Estado (2026-11-08): lo que trae la 1.2
 
 - **WAVE es una lista de 14 osciladores**: SAW, SAW+SUB, FAT, DETUNE+SUB, SHINE, METAL, GROWL, BREATH, WILD,
@@ -188,7 +196,9 @@ van en su propio objeto (`OBJ_OPTIONS`, 0xDE000), no se guardan con un preset ni
 - **MIDI:** canal de entrada (ALL o 1–16: notas y CC de otro canal se ignoran; el reloj siempre entra), canal de
   salida (1–16, para las teclas y el secuenciador), **SEQ NOTES OUT** (las notas del secuenciador por USB: acento
   con velocidad 127, el resto 80; un slide manda la nota nueva antes de soltar la anterior) y **CLOCK OUT** (con
-  el reloj interno, Start, Stop y 24 pulsos por negra; con reloj externo no manda nada).
+  el reloj interno, Start, Stop y 24 pulsos por negra; con reloj externo no manda nada) y **CLK OFFSET** (−40 a
+  +40 ms, −16 de serie: con reloj externo, negativo adelanta cada paso y positivo lo retrasa; se afina de oído
+  contra la caja de ritmos).
 - **FINE TUNING:** el menú «Fine tuning» del ATEK303 de VCV, con sus mismos valores: anchura de pulso, caída de la
   cuadrada, esquina y caída de la sierra, drive del filtro, tiempo de slide, auto-legato, saturación del OTA y de
   salida, deriva analógica y unidad. Por defecto, los del modelo «circuit», que es como sonaba hasta ahora.
