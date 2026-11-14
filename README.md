@@ -46,3 +46,5 @@ Para tenerlo todo: `herramientas/clonar-terceros.sh`.
 [atek303/app/dsp/LICENSE-open303.txt](atek303/app/dsp/LICENSE-open303.txt)) y se monta sobre
 [fm1-base](https://github.com/charlesvestal/fm1-base), que es MPL-2.0 y se clona aparte: `atek303/base` es un enlace a
 `terceros/fm1-base`, así que antes de compilar hay que ejecutar `herramientas/clonar-terceros.sh`.
+
+You can also try ATEK303 in the browser, no flashing needed, in the free community [FM-1 Emulator](https://fm1-emulator.atst.tools/).
