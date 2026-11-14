@@ -3,6 +3,8 @@ terceros/
 # Firmwares descargados (de la comunidad o de M-VAVE): se bajan otra vez, nunca entran
 firmwares/descargas/
 *.fwsc
+# Módulos de fm1-dock compilados (firmwares/propios/dock-animatek/)
+*.dock
 *.fm1save
 # Copias de la flash de un FM-1 real: llevan sonidos, ajustes y el firmware de M-VAVE
 backups/*
