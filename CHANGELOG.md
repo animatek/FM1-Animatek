@@ -2,6 +2,7 @@
 
 ## 2026-11-20
 
+- **ATEK303 1.4 publicada** (tag `atek303-v1.4`, release con `atek303-1.4.fwsc` y portada; identidad `FM-1_330010400`): lector de pantalla y, de paso, la 1.3 (CLK OFFSET), que estaba preparada en `gh-pages` local (`8dcc1e4`) sin subir. `gh-pages` (`5216e79`): instalador, portada y cheat sheet v1.4, la versión del navegador con su lector (`play/reader/`, eSpeak NG) y `atek303/words/2c594af1a0.json` con su índice. Comprobado: `animatek.net/atek303/words/2c594af1a0.json` da 302 a GitHub Pages y 200, con CORS; la portada dice «Version 1.4». Copia en `firmwares/propios/`. Main en `7f9bc2a`. Respuesta a João en borrador (`BORRADOR-issue-1-joao.md`), sin publicar.
 - **ATEK303: el lector, probado en el FM-1 de Javier** (20/11, dos rondas de 3 min con `fm1_reader.py` mientras Javier tocaba; instalado con M-Flasher tras copia doble comparada en `backups/fm1-2026-11-20-*`). Se oyó bien: mandos, las 8 páginas, editor paso a paso, PRESETS, OPTIONS, SAVE, PLAY/STOP. Arreglado de lo que oímos: el nombre de la página se perdía al girar un mando justo al cambiar de página (ahora se dice la página entera con el valor nuevo); sin repetir el mismo texto seguido; ALGO en un extremo dice FIRST o LAST; la lista dice su fila («14 OF 32»); al moverse por la lista se dice LOADED, y sonando NEXT, AT THE END OF THE PATTERN. Prueba `reader.txt` ampliada con esos casos; 10/10 pruebas, auditoría 0 errores en 935 mensajes; palabras sin cambios (`2c594af1a0`). **Sin publicar las palabras en `gh-pages`, sin commit ni release.**
 
 ## 2026-11-19
