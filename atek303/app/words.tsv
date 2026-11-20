@@ -23,3 +23,23 @@ OCTAVES	octaves
 OCT UP	octave up
 FIFTH UP	fifth up
 SQR+SUB	square plus sub
+ACC	accent
+SLD	slide
+SEL	sel button
+CH	channel
+CLK	clock
+OTA	O T A
+US	microseconds
+VCF	filter
+PATT	pattern
+CHOR	chorus
+REVRB	reverb
+SCALE ACID	scale minor pentatonic
+SCALE MEN	scale natural minor
+SCALE FRIG	scale phrygian
+SCALE ARM	scale harmonic minor
+SCALE DOR	scale dorian
+SCALE BLUE	scale blues
+SCALE MAY	scale major
+SCALE CROM	scale chromatic
+OCT	octave

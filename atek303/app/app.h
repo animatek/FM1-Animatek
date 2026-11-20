@@ -37,4 +37,6 @@ void app_input_only(void);
 void app_say(const char *a, const char *b);
 
 #define APP_HOST_EXPECT
+#define APP_HOST_SPEAKDUMP
+void app_speak_dump(void);
 int app_expect(const char *what, int *got);

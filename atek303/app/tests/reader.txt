@@ -1,0 +1,105 @@
+# El lector de pantalla (fm1-reader, issue #1): lo que oye quien no ve la pantalla.
+#   app/build/host/atek303_host app/tests/reader.txt app/build/host
+wait 600
+listen
+wait 400
+said ATEK303. STOPPED
+# un mando girando: su nombre y su valor
+turn K1 5
+wait 400
+said CUTOFF
+unsaid VCF PAGE
+turn K2 3
+wait 400
+said RESO
+# HOME: la página siguiente, entera
+tap HOME
+wait 500
+said VOICE PAGE. ACCENT
+# ALGO: la onda, desde cualquier página
+turn ALGO -1
+wait 400
+said WAVE
+# el editor: la pantalla, y cada paso al moverse y al cambiarlo
+tap EDIT
+wait 500
+said EDIT. STEP 1 OF 16
+turn SELECT 2
+wait 400
+said STEP 3 OF 16
+tap ENV
+wait 400
+said STEP 3 OF 16
+tap HOME
+wait 500
+said VCF PAGE
+# reproducir y parar
+tap PLAY
+wait 600
+said PLAYING
+tap PLAY
+wait 400
+said STOPPED
+# la lista de presets: la fila con su sitio
+turn PRESET 1
+wait 500
+said PRESETS. PRESET
+turn PRESET 1
+wait 500
+said OF 32
+tap HOME
+wait 500
+# OPTIONS: el elemento con su sitio, y su valor al cambiar
+tap GLO
+wait 500
+said OPTIONS. DISPLAY. COLOR
+turn SELECT 1
+wait 400
+said MIDI IN CH ALL, 2 OF 17
+unsaid MIDI. MIDI
+turn K1 1
+wait 400
+said MIDI IN CH 1
+tap HOME
+wait 500
+said OPTIONS SAVED
+# SAVE: la pantalla, el hueco al moverlo, y cancelar es un aviso que dice qué no pasó
+tap SAVE
+wait 500
+said SAVE PRESET. SLOT
+turn PRESET 1
+wait 400
+said SLOT
+tap HOME
+wait 500
+said SAVE CANCELLED NOT SAVED
+# el lector pide la pantalla entera (WHERE)
+where
+wait 400
+said VCF PAGE. CUTOFF
+# (en el FM-1, 20/11) una página nueva y un mando girado enseguida: el nombre de la página no se pierde
+tap FX
+wait 60
+turn K2 2
+wait 500
+said DELAY PAGE
+# ALGO en un extremo de la lista lo dice
+turn ALGO -20
+wait 400
+turn ALGO -1
+wait 400
+said WAVE SAW, FIRST
+# (en el FM-1, 20/11) la lista carga al moverse: se dice que ha entrado
+tap HOME
+wait 300
+turn PRESET 1
+wait 500
+turn PRESET 1
+wait 800
+said LOADED
+# sonando, espera al final del patrón
+tap PLAY
+wait 300
+turn PRESET 1
+wait 500
+said NEXT, AT THE END OF THE PATTERN

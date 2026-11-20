@@ -4,6 +4,18 @@ La voz del **ATEK303** de VCV Rack (`../../VCV-Rack/ATEK303`) como firmware del 
 sobre **fm1-base**. Primer paso del plan (ver `../docs/05-ideas-animatek.md`): aprender la
 plataforma con un motor que ya es nuestro. Licencia GPL-3.0-or-later, como el ATEK303.
 
+## Estado (2026-11-20): lo que trae la 1.4
+
+- **Lector de pantalla** con el [FM-1 Screen Reader](https://charlesvestal.github.io/fm1-reader/) de Charles Vestal
+  (issue #1, lo pidió João Durães): conectas el FM-1 por USB, abres la página en Chrome o Edge y oyes lo que sale en
+  pantalla, con su voz o con VoiceOver, NVDA, Orca o TalkBack. Dice la página y sus cuatro mandos al cambiar, cada
+  mando al girarlo, el editor paso a paso (nota, ACC, SLD, TIE), la lista de presets con su sitio, OPTIONS, la
+  pantalla de SAVE, PLAY/STOP y el preset que entra (LOADED, o NEXT si espera al final del patrón). Los avisos dicen
+  qué no ha pasado. Palabras en `app/words.tsv` → `words/2c594af1a0.json` en GitHub Pages.
+- Probado en el FM-1 real el 20/11 con `fm1_reader.py` mientras se tocaba; prueba nueva del simulador `reader.txt`
+  (diez en total) y la auditoría de fm1-reader sin errores.
+- Trae también lo de la 1.3 (CLK OFFSET), que no llegó a publicarse sola.
+
 ## Estado (2026-11-14): lo que trae la 1.3
 
 - **OPTIONS > CLK OFFSET** (sección MIDI): −40 a +40 ms, de 1 en 1, para cuadrar el secuenciador con un reloj MIDI

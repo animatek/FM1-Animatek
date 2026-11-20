@@ -1221,7 +1221,11 @@ static void knob_text(int k, char *b)
         pct_text(x, b);
 }
 
-void app_say(const char *a, const char *b)
+/* the screen reader (fm1-reader, speak() below): a message went to it this frame, so speak() leaves be what it changed */
+static uint8_t sp_said;
+/* a message for a moment in the header, and to a screen reader: flags ANN_NOW, or ANN_NOW | ANN_KEEP when something did
+ * not happen (said whole: what follows does not cut it off) */
+static void say_as(const char *a, const char *b, uint32_t flags)
 {
     uint32_t i;
     char t[48];
@@ -1240,9 +1244,12 @@ void app_say(const char *a, const char *b)
             text_cat(t, " ");
             text_cat(t, ui.msg[1]);
         }
-        ann_say(t, 0, ANN_NOW);
+        ann_say(t, 0, flags);
+        sp_said = 1;
     }
 }
+void app_say(const char *a, const char *b) { say_as(a, b, ANN_NOW); }
+static void app_warn(const char *a, const char *b) { say_as(a, b, ANN_NOW | ANN_KEEP); }
 
 static void knob_turn(int k, int32_t det)
 {
@@ -1340,7 +1347,7 @@ static void preset_save(int slot, const char *name)
                          sizeof(preset_t) * PRESETS_PER_OBJ) == 0;
     ok = ok && plat_store_save(OBJ_SETTINGS, &set, sizeof set) == 0;   /* and the state at power-on */
     if (!ok) {
-        app_say("SAVE", "FAILED");
+        app_warn("SAVE", "FAILED");
         return;
     }
     cur_preset = (int8_t)slot;
@@ -1410,7 +1417,7 @@ static void preset_load_now(int c)
     if (presets[c].used)
         post(EV_LOAD, (uint32_t)c, 1);
     else
-        app_say("EMPTY", "");
+        app_warn("EMPTY", "NOT LOADED");
     ui.redraw = 1;
 }
 static void preset_delete(int slot)
@@ -1422,7 +1429,7 @@ static void preset_delete(int slot)
         presets[slot].name[i] = 0;
     if (plat_store_save((uint32_t)(OBJ_PRESETS_A + bank), &presets[bank * PRESETS_PER_OBJ],
                         sizeof(preset_t) * PRESETS_PER_OBJ) != 0) {
-        app_say("DELETE", "FAILED");
+        app_warn("DELETE", "FAILED");
         return;
     }
     if (cur_preset == slot)
@@ -1489,7 +1496,7 @@ static void opt_close(void)
         if (plat_store_save(OBJ_OPTIONS, &opt, sizeof opt) == 0)
             app_say("OPTIONS", "SAVED");
         else
-            app_say("OPTIONS", "NOT SAVED");
+            app_warn("OPTIONS", "NOT SAVED");
     }
     ui.redraw = 1;
 }
@@ -1553,7 +1560,7 @@ static void input(void)
         if (!(btn & bit) || (ui.btn & bit))
             continue;
         if (k == B_SAVE && backup_hold) {      /* a backup is streaming: nothing is written meanwhile */
-            app_say("SAVE", "BACKUP RUNNING");
+            app_warn("SAVE", "BACKUP RUNNING");
             continue;
         }
         if (ui.save) {                         /* the SAVE screen: SAVE goes on, any other button cancels */
@@ -1567,7 +1574,7 @@ static void input(void)
                 ui.save = 1;                   /* NO: back to choosing */
             else {
                 ui.save = 0;
-                app_say("SAVE", "CANCELLED");
+                app_warn("SAVE CANCELLED", "NOT SAVED");
             }
             ui.redraw = 1;
             continue;
@@ -1588,7 +1595,7 @@ static void input(void)
             int c = ui.list_cur;
             ui.list_until = plat_ms() + 6000u;
             if (!presets[c].used)
-                app_say("EMPTY", "");
+                app_warn("EMPTY", "NOT DELETED");
             else if (ui.del_t && plat_ms() - ui.del_t < 2000u) {
                 ui.del_t = 0;
                 preset_delete(c);
@@ -1708,9 +1715,12 @@ static void input(void)
             set_dirty = 1;
         } else if (k == EN_ALGO) {             /* ALGO: the wave, wherever you are (the VOICE page's WAVE) */
             char t[24];
+            int before = at_osc_index(set.param[AT_WAVE]);
             knob_turn(AT_WAVE, e > 0 ? 1 : -1);
             t[0] = 0;
             text_cat(t, AT_OSC_NAME[at_osc_index(set.param[AT_WAVE])]);
+            if (at_osc_index(set.param[AT_WAVE]) == before)   /* at an end of the list: say so */
+                text_cat(t, e > 0 ? ", LAST" : ", FIRST");
             app_say("WAVE", t);
         } else if (k == EN_SELECT) {
             set.page = (uint8_t)((set.page + (e > 0 ? 1u : NPAGES - 1u)) % NPAGES);
@@ -1731,7 +1741,7 @@ static void input(void)
         uint8_t ev = ui_event - 1u;
         ui_event = 0;
         if (ev < 8u)
-            app_say(NAME[ev], ui_event_ok ? "OK" : "NOTHING");
+            say_as(NAME[ev], ui_event_ok ? "OK" : "NO CHANGE", ui_event_ok ? ANN_NOW : ANN_NOW | ANN_KEEP);
     }
     if (keys != ui.keys || btn != ui.btn)
         ui.redraw = 1;
@@ -2204,6 +2214,428 @@ void app_splash(void)
     cv_blit(0, 206);
 }
 
+/* ------------------------------------------------------- screen reader --- */
+/* What changed on the screen, for a screen reader on the computer (fm1-reader: base/device/announce.c sends it, and
+ * words.tsv says how to read it). Once a frame: everything when the reader asks (WHERE) or starts; the screen when
+ * the page, the list, the editor, OPTIONS or SAVE comes up; then each knob, step, row or choice as it changes. */
+static char sp_buf[241];                       /* the text being built: in the pool, not on the 8 KiB system stack */
+static uint32_t sp_n;
+static struct {
+    uint8_t started, running, save, save_yes, opt_cur, opt_v, edit_cursor;
+    int8_t list_cur, save_slot, preset, pend;
+    uint32_t ctx, step_sig, name_sig;
+    uint32_t ctx_t, last_sig;                  /* when the screen changed; the last readout said */
+    char val[4][16];
+} sp;
+static void sp_cat(const char *s)
+{
+    while (s && *s && sp_n < sizeof sp_buf - 1u)
+        sp_buf[sp_n++] = *s++;
+    sp_buf[sp_n] = 0;
+}
+static void sp_int(int32_t v)
+{
+    char t[12];
+    int_text(v, t);
+    sp_cat(t);
+}
+static uint32_t sp_hash(uint32_t h, uint32_t v) { return (h ^ v) * 16777619u; }
+static int sp_same(const char *a, const char *b)   /* the device has no libc: strcmp */
+{
+    while (*a && *a == *b)
+        a++, b++;
+    return *a == *b;
+}
+static int sp_starts(const char *s, const char *p)  /* s begins with p */
+{
+    while (*p && *s == *p)
+        s++, p++;
+    return !*p;
+}
+static uint32_t sp_text_sig(const char *s)
+{
+    uint32_t h = 2166136261u;
+    while (s && *s)
+        h = sp_hash(h, (uint8_t)*s++);
+    return h;
+}
+static uint32_t sp_context(void)               /* which screen is up: a new one is said whole */
+{
+    return ui.save ? 100u + ui.save : ui.opts ? 200u : ui.list ? 300u : ui.edit ? 400u : 500u + set.page;
+}
+static void sp_knob(int i)                     /* "CUTOFF 1200 HZ" */
+{
+    char t[16];
+    sp_cat(PAGE_NAME[set.page][i]);
+    sp_cat(" ");
+    knob_text(PAGE_KNOB[set.page][i], t);
+    sp_cat(t);
+}
+static uint32_t sp_step_sig(int st)
+{
+    const acid_grid_t *g = &sq.grid;
+    uint32_t h = 2166136261u;
+    h = sp_hash(h, (uint32_t)st);
+    h = sp_hash(h, (uint32_t)seq_len());
+    h = sp_hash(h, g->gate[st] | g->tie[st] << 1 | g->accent[st] << 2 | g->slide[st] << 3);
+    return sp_hash(h, (uint32_t)(step_pc(g, st) + 12 * step_oct(g, st) + 64));
+}
+static void sp_step(int st)                    /* "STEP 5 OF 16, C3 ACC SLD", "STEP 6 OF 16, REST" */
+{
+    const acid_grid_t *g = &sq.grid;
+    char t[12];
+    sp_cat("STEP ");
+    sp_int(st + 1);
+    sp_cat(" OF ");
+    sp_int(seq_len());
+    sp_cat(", ");
+    if (!g->gate[st]) {
+        sp_cat("REST");
+        return;
+    }
+    note_name(36 + 12 * (set.octave + 1) + set.root + acid_semi_of(g->deg[st], g->oct[st], set.scale), t);
+    sp_cat(t);
+    if (g->tie[st])
+        sp_cat(" TIE");
+    if (g->accent[st])
+        sp_cat(" ACC");
+    if (g->slide[st])
+        sp_cat(" SLD");
+}
+static void sp_slot(int i)                     /* "PRESET 3, ACID WORM", "PRESET 4, EMPTY" */
+{
+    sp_cat("PRESET ");
+    sp_int(i + 1);
+    sp_cat(", ");
+    sp_cat(presets[i].used ? presets[i].name : "EMPTY");
+}
+static void sp_option(int i, int with_section)   /* "MIDI. MIDI IN CH ALL, 2 OF 17" */
+{
+    char t[16];
+    if (with_section && OPT_SECTION[i] && !sp_starts(OPT_LABEL[i], OPT_SECTION[i])) {
+        sp_cat(OPT_SECTION[i]);
+        sp_cat(". ");
+    }
+    sp_cat(OPT_LABEL[i]);
+    sp_cat(" ");
+    opt_value_text(i, t);
+    sp_cat(t);
+    sp_cat(", ");
+    sp_int(i + 1);
+    sp_cat(" OF ");
+    sp_int(OP_N);
+}
+static void sp_save_slot(void)                 /* "SLOT 9, EMPTY. NAME ACID WORM" */
+{
+    sp_cat("SLOT ");
+    sp_int(ui.save_slot + 1);
+    sp_cat(presets[ui.save_slot].used ? ", OVERWRITE. NAME " : ", EMPTY. NAME ");
+    sp_cat(ui.save_name);
+}
+/* the screen up now: its name, what is on it, and (whole) what its controls do */
+static void sp_screen(int whole)
+{
+    int i;
+    sp_n = 0;
+    sp_buf[0] = 0;
+    if (ui.save == 2) {
+        sp_cat("OVERWRITE? ");
+        sp_slot(ui.save_slot);
+        sp_cat(ui.save_yes ? ". YES" : ". NO");
+        sp_cat(". TURN: NO OR YES. SAVE: OK");
+    } else if (ui.save) {
+        sp_cat("SAVE PRESET. ");
+        sp_save_slot();
+        if (whole)
+            sp_cat(". PRESETS: SLOT. SELECT: NAME. SAVE: NEXT. ANY OTHER BUTTON: CANCEL");
+    } else if (ui.opts) {
+        const char *sec = 0;
+        for (i = ui.opt_cur; i >= 0 && !sec; i--)
+            sec = OPT_SECTION[i];
+        sp_cat("OPTIONS. ");
+        if (!sp_starts(OPT_LABEL[ui.opt_cur], sec)) {   /* "MIDI. MIDI IN CH": the section once */
+            sp_cat(sec);
+            sp_cat(". ");
+        }
+        sp_option(ui.opt_cur, 0);
+        if (whole)
+            sp_cat(". SELECT: ITEM. KNOBS: VALUE. HOME: CLOSE");
+    } else if (ui.list) {
+        sp_cat("PRESETS. ");
+        sp_slot(ui.list_cur);
+        if (ui.list_cur == cur_preset)
+            sp_cat(", LOADED");
+        sp_cat(", ");
+        sp_int(ui.list_cur + 1);
+        sp_cat(" OF ");
+        sp_int(NPRESETS);
+        if (whole)
+            sp_cat(". PRESETS: MOVE. SEL OR A WHITE KEY: LOAD. ENV TWICE: DELETE. HOME: CLOSE");
+    } else if (ui.edit) {
+        sp_cat("EDIT. ");
+        sp_step(ui.cursor);
+        if (whole)
+            sp_cat(". SELECT: STEP. KEYS: NOTE. K1 NOTE, K2 OCT, K3 ACC OR SLD, K4 GATE. ENV: ACC. LFO: SLD. REC: UNDO");
+    } else {
+        sp_cat(PAGE_TAB[set.page]);
+        sp_cat(" PAGE. ");
+        for (i = 0; i < 4; i++) {
+            sp_knob(i);
+            sp_cat(i < 3 ? ". " : "");
+        }
+    }
+}
+static void sp_snap(void)
+{
+    int i;
+    sp.ctx = sp_context();
+    for (i = 0; i < 4; i++)
+        knob_text(PAGE_KNOB[set.page][i], sp.val[i]);
+    sp.edit_cursor = ui.cursor;
+    sp.step_sig = sp_step_sig(ui.cursor);
+    sp.list_cur = ui.list_cur;
+    sp.opt_cur = ui.opt_cur;
+    sp.opt_v = opt.v[ui.opt_cur];
+    sp.save = ui.save;
+    sp.save_slot = ui.save_slot;
+    sp.save_yes = ui.save_yes;
+    sp.name_sig = sp_text_sig(ui.save_name);
+    sp.preset = cur_preset;
+    sp.pend = pend_preset;
+}
+static void speak(void)
+{
+    uint32_t now = plat_ms();
+    int where = ann_where(), i, changed = -1;
+    if (!ann_on()) {
+        sp.started = 0;
+        sp_said = 0;
+        return;
+    }
+    if (!sp.started || where) {                /* everything: the header, then the screen with its controls */
+        char o[4];
+        sp.started = 1;
+        sp.running = sq.running;
+        sp_snap();
+        sp_n = 0;
+        sp_buf[0] = 0;
+        sp_cat(APP_NAME);
+        if (cur_preset >= 0) {
+            sp_cat(". ");
+            sp_slot(cur_preset);
+        }
+        sp_cat(sq.running ? ". PLAYING" : ". STOPPED");
+        sp_cat(". OCT ");
+        o[0] = set.octave < 0 ? '-' : '+';
+        o[1] = (char)('0' + (set.octave < 0 ? -set.octave : set.octave));
+        o[2] = 0;
+        sp_cat(o);
+        if (set.locked)
+            sp_cat(". LOCK");
+        ann_say(sp_buf, 0, ANN_NOW);
+        sp_screen(1);
+        ann_say(sp_buf, 0, 0);
+        sp_said = 0;
+        return;
+    }
+    if (sq.running != sp.running) {            /* PLAY, STOP, or a MIDI start / stop */
+        sp.running = sq.running;
+        ann_say(sq.running ? "PLAYING" : "STOPPED", 0, ANN_NOW);
+    }
+    if (sp_said) {                             /* a button said what it did (and what it changed) */
+        sp_said = 0;
+        sp.last_sig = 0;
+        sp_snap();
+        return;
+    }
+    if (pend_preset != sp.pend) {              /* chosen while playing: it waits for the end of the pattern */
+        sp.pend = pend_preset;
+        if (pend_preset >= 0)
+            ann_say("NEXT, AT THE END OF THE PATTERN", 0, 0);
+    }
+    if (cur_preset != sp.preset && !ui.save) {   /* a preset went in (now, or at the end of the pattern) */
+        sp.preset = cur_preset;
+        if (cur_preset >= 0 && ui.list)        /* the list: its row is being said, so just that it went in */
+            ann_say("LOADED", 0, 0);
+        else if (cur_preset >= 0) {
+            sp_n = 0;
+            sp_buf[0] = 0;
+            sp_cat("LOADED ");
+            sp_slot(cur_preset);
+            ann_say(sp_buf, 0, 0);
+        }
+    }
+    if (sp_context() != sp.ctx) {              /* a new screen: said when it settles */
+        int first = (sp.ctx >= 500u) != (sp_context() >= 500u) || sp.ctx < 500u;   /* not a page of the same kind */
+        sp_snap();
+        sp_screen(first);
+        sp.ctx_t = now | 1u;
+        sp.last_sig = 0;
+        ann_later(sp_buf, ANN_NOW, 200u, now);
+        return;
+    }
+    sp_n = 0;
+    sp_buf[0] = 0;
+    if (ui.save) {
+        if (ui.save_yes != sp.save_yes)
+            sp_cat(ui.save_yes ? "YES" : "NO");
+        else if (ui.save_slot != sp.save_slot || sp_text_sig(ui.save_name) != sp.name_sig) {
+            if (ui.save_slot != sp.save_slot)
+                sp_save_slot();
+            else {
+                sp_cat("NAME ");
+                sp_cat(ui.save_name);
+            }
+        }
+    } else if (ui.opts) {
+        if (ui.opt_cur != sp.opt_cur)
+            sp_option(ui.opt_cur, 1);
+        else if (opt.v[ui.opt_cur] != sp.opt_v) {
+            char t[16];
+            opt_value_text(ui.opt_cur, t);
+            sp_cat(OPT_LABEL[ui.opt_cur]);
+            sp_cat(" ");
+            sp_cat(t);
+        }
+    } else if (ui.list) {
+        if (ui.list_cur != sp.list_cur) {
+            sp_slot(ui.list_cur);
+            sp_cat(", ");
+            sp_int(ui.list_cur + 1);
+            sp_cat(" OF ");
+            sp_int(NPRESETS);
+        }
+    } else if (ui.edit) {
+        if (ui.cursor != sp.edit_cursor || sp_step_sig(ui.cursor) != sp.step_sig)
+            sp_step(ui.cursor);
+    } else {
+        for (i = 0; i < 4 && changed < 0; i++) {   /* a knob turning */
+            char t[16];
+            knob_text(PAGE_KNOB[set.page][i], t);
+            if (!sp_same(t, sp.val[i]))
+                changed = i;
+        }
+        if (changed >= 0)
+            sp_knob(changed);
+    }
+    sp_snap();
+    if (!sp_n)
+        return;
+    if (sp.ctx_t && now - sp.ctx_t < 600u) {   /* turned just after the screen changed: its name is not said yet,
+                                                  so the screen again, with the new value (else "DECAY 53 %" alone) */
+        sp_screen(0);
+        ann_later(sp_buf, ANN_NOW, 200u, now);
+        return;
+    }
+    sp.ctx_t = 0;
+    if (sp_text_sig(sp_buf) == sp.last_sig)    /* the same text as the last readout: nothing new to hear */
+        return;
+    sp.last_sig = sp_text_sig(sp_buf);
+    ann_later(sp_buf, ANN_NOW, 120u, now);
+}
+
+#ifdef PLAT_HOST
+/* every page, knob value, step, row, option and message as the reader gets them ("speakdump"): KIND <tab> text.
+ * fm1-reader's tools/audit.mjs puts them in words with web/words/ and checks them */
+static void sp_dump(const char *kind) { printf("%s\t%s\n", kind, sp_buf); }
+void app_speak_dump(void)
+{
+    static const char *const MSG[][2] = {{"SAVE", "FAILED"}, {"DELETE", "FAILED"}, {"OPTIONS", "SAVED"},
+        {"OPTIONS", "NOT SAVED"}, {"SAVE", "BACKUP RUNNING"}, {"SAVE CANCELLED", "NOT SAVED"}, {"EMPTY", "NOT LOADED"},
+        {"ENV AGAIN", "TO DELETE"}, {"DELETED", ""}, {"LOCK", "ON: MUTATE"}, {"LOCK", "OFF: NEW SEED"},
+        {"GENERATE", "OK"}, {"MUTATE", "NO CHANGE"}, {"UNDO", "OK"}, {"OCTAVE", "-2"}, {"OCTAVE", "+1"},
+        {"STEPS", "16"}, {"ROOT", "F#"}, {"WAVE", "DETUNE+SUB"}, {"WAVE", "SAW, FIRST"}, {"WAVE", "SQUARE, LAST"}, {"SAVED", "09 ACID WORM"}, {"NEXT, AT THE END OF THE PATTERN", ""}, {"LOADED", ""}};
+    settings_t keep = set;
+    uint8_t kopt[OP_N];
+    int i, j, v;
+    for (i = 0; i < OP_N; i++)
+        kopt[i] = opt.v[i];
+    for (i = 0; i < (int)(sizeof MSG / sizeof MSG[0]); i++) {
+        sp_n = 0;
+        sp_cat(MSG[i][0]);
+        if (MSG[i][1][0]) {
+            sp_cat(" ");
+            sp_cat(MSG[i][1]);
+        }
+        sp_dump("MSG");
+    }
+    ui.save = ui.opts = ui.list = ui.edit = 0;
+    for (int pg = 0; pg < NPAGES; pg++) {     /* each page, whole, and each knob over its range */
+        set.page = (uint8_t)pg;
+        sp_screen(1);
+        sp_dump("PAGE");
+        for (j = 0; j < 4; j++) {
+            int k = PAGE_KNOB[set.page][j];
+            for (v = 0; v <= 20; v++) {
+                float x = (float)v / 20.0f;
+                if (k >= 0 && k < AT_NPARAMS)
+                    set.param[k] = x;
+                else if (k >= K_FX)
+                    set.fx[k - K_FX] = k == K_FX + FX_DRIVE_TYPE ? (float)(v % FX_DRIVE_TYPES)
+                                     : k == K_FX + FX_MOD_TYPE ? (float)(v % FX_MOD_TYPES)
+                                     : k == K_FX + FX_DLY_TIME ? (float)(v % FX_DLY_TIMES) : x;
+                else if (k == K_SCALE)
+                    set.scale = (uint8_t)(v % ACID_SCALES_LEN);
+                else if (k == K_ROOT)
+                    set.root = (uint8_t)(v % 12);
+                else if (k == K_STEPS)
+                    set.steps = (uint8_t)(1 + v * 3);
+                else if (k == K_TEMPO)
+                    set.tempo = (uint16_t)(60 + v * 6);
+                else if (k >= K_SQ && k < K_SQ + SQ_NKNOBS)
+                    set.seqk[k - K_SQ] = x;
+                sp_n = 0;
+                sp_knob(j);
+                sp_dump("KNOB");
+            }
+            set = keep;
+            set.page = (uint8_t)pg;
+        }
+    }
+    set = keep;
+    ui.edit = 1;                               /* the editor: its screen and every step */
+    for (i = 0; i < seq_len(); i++) {
+        ui.cursor = (uint8_t)i;
+        sp_screen(i == 0);
+        sp_dump("EDIT");
+    }
+    ui.edit = 0;
+    ui.list = 1;
+    for (i = 0; i < NPRESETS; i++) {
+        ui.list_cur = (int8_t)i;
+        sp_screen(i == 0);
+        sp_dump("LIST");
+    }
+    ui.list = 0;
+    ui.opts = 1;
+    for (i = 0; i < OP_N; i++) {
+        ui.opt_cur = (uint8_t)i;
+        for (v = 0; v < opt_count(i); v++) {
+            opt.v[i] = (uint8_t)v;
+            sp_n = 0;
+            sp_option(i, 1);
+            sp_dump("OPT");
+        }
+        sp_screen(1);
+        sp_dump("OPTIONS");
+    }
+    for (i = 0; i < OP_N; i++)
+        opt.v[i] = kopt[i];
+    ui.opts = 0;
+    ui.save = 1;
+    ui.save_slot = 8;
+    sp_screen(1);
+    sp_dump("SAVE");
+    ui.save = 2;
+    ui.save_slot = 0;
+    sp_screen(1);
+    sp_dump("SAVE");
+    ui.save = 0;
+    ui.list_cur = 0;
+    ui.cursor = 0;
+}
+#endif
+
 void app_ui_init(void)
 {
     theme_apply(opt.v[OP_COLOR]);
@@ -2220,6 +2652,7 @@ void app_frame(void)
     static int last_batt = -2;
     uint32_t now = plat_ms();
     input();
+    speak();
     ann_tick(now);
     if (plat_battery() != last_batt) {         /* the battery's bars (header) */
         last_batt = plat_battery();
